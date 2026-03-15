@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Holograma 360</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils"></script>
+
+<style>
+
+body{
+background:black;
+margin:0;
+display:flex;
+justify-content:center;
+align-items:center;
+height:100vh;
+overflow:hidden;
+}
+
+#container{
+position:relative;
+width:320px;
+height:320px;
+animation:spin 8s linear infinite;
+}
+
+video{
+display:none;
+}
+
+canvas{
+background:transparent;
+}
+
+.face{
+position:absolute;
+width:160px;
+height:160px;
+overflow:hidden;
+}
+
+.top{
+top:0;
+left:80px;
+transform:rotate(180deg);
+}
+
+.bottom{
+bottom:0;
+left:80px;
+}
+
+.left{
+left:0;
+top:80px;
+transform:rotate(90deg);
+}
+
+.right{
+right:0;
+top:80px;
+transform:rotate(-90deg);
+}
+
+@keyframes spin{
+
+0%{
+transform:rotateY(0deg)
+}
+
+100%{
+transform:rotateY(360deg)
+}
+
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="container">
+
+<div class="face top"><canvas id="c1"></canvas></div>
+<div class="face bottom"><canvas id="c2"></canvas></div>
+<div class="face left"><canvas id="c3"></canvas></div>
+<div class="face right"><canvas id="c4"></canvas></div>
+
+</div>
+
+<video id="input" autoplay playsinline></video>
+
+<script>
+
+const video = document.getElementById("input")
+
+navigator.mediaDevices.getUserMedia({video:true}).then(stream=>{
+video.srcObject = stream
+})
+
+const canvases = [
+document.getElementById("c1"),
+document.getElementById("c2"),
+document.getElementById("c3"),
+document.getElementById("c4")
+]
+
+const ctx = canvases.map(c => c.getContext("2d"))
+
+const segmentation = new SelfieSegmentation({
+locateFile: file =>
+`https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
+})
+
+segmentation.setOptions({
+modelSelection:1
+})
+
+segmentation.onResults(results=>{
+
+for(let c of canvases){
+c.width = video.videoWidth
+c.height = video.videoHeight
+}
+
+ctx.forEach(context=>{
+
+context.clearRect(0,0,video.videoWidth,video.videoHeight)
+
+context.drawImage(results.segmentationMask,0,0)
+
+context.globalCompositeOperation="source-in"
+
+context.drawImage(results.image,0,0)
+
+context.globalCompositeOperation="source-over"
+
+})
+
+})
+
+const camera = new Camera(video,{
+onFrame: async ()=>{
+await segmentation.send({image:video})
+},
+width:640,
+height:480
+})
+
+camera.start()
+
+</script>
+
+</body>
+</html>
